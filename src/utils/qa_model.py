@@ -31,6 +31,10 @@ class ModelName(Enum):
     @staticmethod
     def get_cost(model_name: "ModelName") -> dict[str, float]:
         costs = {
+            ModelName.GEMINI_3_PRO_PREVIEW: {
+                "input": 2.0,
+                "output": 12.0,
+            },
             ModelName.GEMINI_3_FLASH_PREVIEW: {
                 "input": 0.5,
                 "output": 3.0,

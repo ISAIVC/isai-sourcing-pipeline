@@ -85,6 +85,12 @@ class WebsiteEnrichmentQAInput(BaseModel):
 
 
 def build_website_ai_parsing_question(content: str):
+    logger = get_logger()
+    if len(content.split()) > 25_000:
+        logger.warning(
+            f"Content is too long for the website AI parsing. Cropping to 25_000 words. Original length: {len(content.split())}"
+        )
+        content = " ".join(content.split()[:25_000])
     question = Question(
         text_content=content,
         question="Please generate the CompanyAnalysis JSON for this company",

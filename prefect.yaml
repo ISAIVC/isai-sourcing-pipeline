@@ -224,3 +224,20 @@ deployments:
       cloudwatch_logs_options:
         awslogs-stream-prefix: compute-search-resources
   pull: *pull_action
+
+- name: attio-push-deployment
+  version: 0.1.0
+  tags: ["attio-push"]
+  entrypoint: src/flows/attio_push.py:attio_push_flow
+  parameters:
+    domains: []
+    workspace: "cg"
+  work_pool:
+    name: ecs-push-pool
+    job_variables:
+      cpu: 512
+      family: attio-push
+      memory: 1024
+      cloudwatch_logs_options:
+        awslogs-stream-prefix: attio-push
+  pull: *pull_action
