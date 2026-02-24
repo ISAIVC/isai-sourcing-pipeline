@@ -7,7 +7,7 @@ from src.utils.db import fetch_in_batches, keep_latest_per_domain, upsert_in_bat
 from src.utils.feature_extractor import EmbeddingTaskType
 from src.utils.logger import get_logger
 
-EMBED_BATCH_SIZE = 100
+EMBED_BATCH_SIZE = 50
 
 # (source_field, embedding_field, task_type)
 DIMENSIONS = [
