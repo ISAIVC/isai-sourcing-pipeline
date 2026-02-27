@@ -181,28 +181,21 @@ deployments:
   tags: ["website-enrichment"]
   description: "Website enrichment deployment"
   schedule:
+    cron: "0 */2 * * *"
+    timezone: "UTC"
   entrypoint: src/flows/website_enrichment.py:website_enrichment_flow
   parameters:
-    domains: 
-      - aceiss.com
-      - acelfil.com
-      - acerta.ai
-      - acodis.io
-      - actifile.com
-      - activatedscale.com
-      - activecharge.us
-      - activecomply.com
-      - acumen.network
-      - adaptavate.com
-      - adaptional.com
-  work_pool: 
+    domains:
+      - ""
+    auto: true
+  work_pool:
     name: ecs-push-pool
     job_variables:
       cpu: 4096
       family: website-enrichment
       memory: 8192
       cloudwatch_logs_options:
-        awslogs-stream-prefix: reconciliation
+        awslogs-stream-prefix: website-enrichment
 
   pull: *pull_action
 
@@ -223,6 +216,28 @@ deployments:
       memory: 2048
       cloudwatch_logs_options:
         awslogs-stream-prefix: compute-search-resources
+  pull: *pull_action
+
+- name: dealroom-enrichment-deployment
+  version: 0.1.0
+  tags: ["dealroom-enrichment"]
+  description: "Dealroom enrichment deployment"
+  schedule:
+    cron: "0 * * * *"
+    timezone: "UTC"
+  entrypoint: src/flows/dealroom_enrichment.py:dealroom_enrichment_flow
+  parameters:
+    domains:
+      - ""
+    auto: true
+  work_pool:
+    name: ecs-push-pool
+    job_variables:
+      cpu: 1024
+      family: dealroom-enrichment
+      memory: 2048
+      cloudwatch_logs_options:
+        awslogs-stream-prefix: dealroom-enrichment
   pull: *pull_action
 
 - name: attio-push-deployment
