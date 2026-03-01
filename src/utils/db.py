@@ -99,17 +99,22 @@ def _upsert_batch(client, table: str, batch: list, on_conflict: str) -> None:
 
 
 def upsert_in_batches(
-    client, table: str, records: list[dict], on_conflict: str, logger
+    client,
+    table: str,
+    records: list[dict],
+    on_conflict: str,
+    logger,
+    batch_size: int = BATCH_SIZE,
 ):
     """Upsert records into a Supabase table in batches."""
     # Sort by conflict column so concurrent tasks acquire row locks in the
     # same order, which eliminates most deadlocks structurally.
     records = sorted(records, key=lambda r: r.get(on_conflict) or "")
-    total_batches = math.ceil(len(records) / BATCH_SIZE) if records else 0
-    for i in range(0, len(records), BATCH_SIZE):
-        batch = [_strip_null_bytes(r) for r in records[i : i + BATCH_SIZE]]
+    total_batches = math.ceil(len(records) / batch_size) if records else 0
+    for i in range(0, len(records), batch_size):
+        batch = [_strip_null_bytes(r) for r in records[i : i + batch_size]]
         _upsert_batch(client, table, batch, on_conflict)
-        logger.info(f"Upserted batch {i // BATCH_SIZE + 1}/{total_batches}")
+        logger.info(f"Upserted batch {i // batch_size + 1}/{total_batches}")
 
 
 def sanitize(val):

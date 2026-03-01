@@ -7,7 +7,7 @@ from src.utils.db import fetch_in_batches, keep_latest_per_domain, upsert_in_bat
 from src.utils.feature_extractor import EmbeddingTaskType
 from src.utils.logger import get_logger
 
-EMBED_BATCH_SIZE = 25
+EMBED_BATCH_SIZE = 100
 
 # (source_field, embedding_field, task_type)
 DIMENSIONS = [
@@ -91,5 +91,10 @@ def embed_textual_dimensions(domains: list[str]):
 
     # 5. Upsert
     upsert_in_batches(
-        client, "company_embeddings", rows, on_conflict="domain", logger=logger
+        client,
+        "company_embeddings",
+        rows,
+        on_conflict="domain",
+        logger=logger,
+        batch_size=100,
     )
