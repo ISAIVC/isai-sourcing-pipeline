@@ -106,7 +106,14 @@ def push_first_iteration_to_supabase(domains_dict: dict[str, str], error: bool):
 
 
 # No cache policy and no caching results
-@task(name="website_crawling", cache_policy=NO_CACHE, cache_result_in_memory=False)
+@task(
+    name="website_crawling",
+    cache_policy=NO_CACHE,
+    cache_result_in_memory=False,
+    timeout_seconds=600,
+    retries=2,
+    retry_delay_seconds=30,
+)
 def website_crawling(domains: list[str]):
     logger = get_logger()
     crawler = Crawler(rate_limit=5, max_retries=3, page_timeout=45000)
