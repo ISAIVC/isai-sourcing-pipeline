@@ -204,7 +204,7 @@ deployments:
   tags: ["search-resources"]
   description: "Pre-computes tag/multitag enum values for AI Search and stores them in the search_ressources bucket"
   schedule:
-    cron: "*/60 * * * *"
+    cron: "0 7 * * *"
     timezone: "UTC"
   entrypoint: src/flows/compute_search_resources.py:compute_search_resources_flow
   parameters: {}
