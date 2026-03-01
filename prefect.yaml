@@ -211,9 +211,9 @@ deployments:
   work_pool:
     name: ecs-push-pool
     job_variables:
-      cpu: 1024
+      cpu: 512
       family: compute-search-resources
-      memory: 2048
+      memory: 1024
       cloudwatch_logs_options:
         awslogs-stream-prefix: compute-search-resources
   pull: *pull_action
@@ -233,9 +233,9 @@ deployments:
   work_pool:
     name: ecs-push-pool
     job_variables:
-      cpu: 1024
+      cpu: 512
       family: dealroom-enrichment
-      memory: 2048
+      memory: 1024
       cloudwatch_logs_options:
         awslogs-stream-prefix: dealroom-enrichment
   pull: *pull_action

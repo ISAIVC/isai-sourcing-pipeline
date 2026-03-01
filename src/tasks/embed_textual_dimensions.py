@@ -7,11 +7,15 @@ from src.utils.db import fetch_in_batches, keep_latest_per_domain, upsert_in_bat
 from src.utils.feature_extractor import EmbeddingTaskType
 from src.utils.logger import get_logger
 
-EMBED_BATCH_SIZE = 50
+EMBED_BATCH_SIZE = 25
 
 # (source_field, embedding_field, task_type)
 DIMENSIONS = [
-    ("solution_and_use_cases", "solution_and_use_cases_embedding", EmbeddingTaskType.CLASSIFICATION),
+    (
+        "solution_and_use_cases",
+        "solution_and_use_cases_embedding",
+        EmbeddingTaskType.CLASSIFICATION,
+    ),
     ("full", "full_embedding", EmbeddingTaskType.RETRIEVAL_DOCUMENT),
 ]
 
@@ -66,15 +70,21 @@ def embed_textual_dimensions(domains: list[str]):
     upsert_records: dict[int, dict] = {}
     for task_type, texts in task_texts.items():
         index_map = task_index_map[task_type]
-        nb_batches = (len(texts) // EMBED_BATCH_SIZE) + (1 if len(texts) % EMBED_BATCH_SIZE != 0 else 0)
+        nb_batches = (len(texts) // EMBED_BATCH_SIZE) + (
+            1 if len(texts) % EMBED_BATCH_SIZE != 0 else 0
+        )
         for i in range(0, len(texts), EMBED_BATCH_SIZE):
             chunk = texts[i : i + EMBED_BATCH_SIZE]
             vectors = embedder(chunk, task_type=task_type)
-            for vec, (rec_idx, emb_field) in zip(vectors, index_map[i : i + EMBED_BATCH_SIZE]):
+            for vec, (rec_idx, emb_field) in zip(
+                vectors, index_map[i : i + EMBED_BATCH_SIZE]
+            ):
                 if rec_idx not in upsert_records:
                     upsert_records[rec_idx] = {"domain": records[rec_idx]["domain"]}
                 upsert_records[rec_idx][emb_field] = vec
-            logger.info(f"[{task_type.value}] Embedded chunk {i // EMBED_BATCH_SIZE + 1}/{nb_batches}")
+            logger.info(
+                f"[{task_type.value}] Embedded chunk {i // EMBED_BATCH_SIZE + 1}/{nb_batches}"
+            )
 
     rows = list(upsert_records.values())
     logger.info(f"Upserting {len(rows)} embedding records")
