@@ -79,17 +79,21 @@ def insert_in_batches(client, table: str, records: list[dict], logger):
         logger.info(f"Inserted batch {i // BATCH_SIZE + 1}/{total_batches}")
 
 
-def _is_deadlock(exc: Exception) -> bool:
+def _is_retryable_db_error(exc: Exception) -> bool:
+    RETRYABLE_CODES = {
+        "40P01",  # deadlock detected
+        "57014",  # statement timeout (transient under load)
+    }
     return (
         isinstance(exc, APIError)
         and bool(exc.args)
         and isinstance(exc.args[0], dict)
-        and exc.args[0].get("code") == "40P01"
+        and exc.args[0].get("code") in RETRYABLE_CODES
     )
 
 
 @retry(
-    retry=retry_if_exception(_is_deadlock),
+    retry=retry_if_exception(_is_retryable_db_error),
     stop=stop_after_attempt(5),
     wait=wait_exponential(multiplier=1, min=1, max=15),
     reraise=True,
