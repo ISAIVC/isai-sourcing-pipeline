@@ -3,4 +3,4 @@
 # This is a safety net: if any process inside the container hangs (e.g. a stuck
 # Playwright/Chromium browser), SIGTERM is sent after 9000s, then SIGKILL 60s later.
 # This cannot be bypassed by hung C extensions or subprocesses.
-exec timeout --kill-after=60s 9000s "$@"
+exec timeout --kill-after=60s 3600s "$@"
