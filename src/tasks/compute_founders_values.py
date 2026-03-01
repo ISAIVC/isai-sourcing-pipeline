@@ -98,9 +98,9 @@ def compute_founders_values(domains: list[str]):
             role = f.get("role") or "Unknown"
             description = f.get("description")
             if description:
-                parts.append(f"### {name} [{role}]: {description}")
+                parts.append(f"{name} [{role}]: {description}")
             else:
-                parts.append(f"### {name} [{role}]")
+                parts.append(f"{name} [{role}]")
 
         background_text = "\n".join(parts)
         backgrounds[domain] = background_text
