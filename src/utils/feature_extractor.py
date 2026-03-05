@@ -13,6 +13,7 @@ import numpy as np
 from google import genai
 from google.genai import types
 from google.genai.errors import ClientError, ServerError
+from google.oauth2.service_account import Credentials
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from src.utils.logger import get_logger
@@ -46,7 +47,8 @@ class EmbeddingModel:
 
     def __init__(
         self,
-        api_key: str,
+        credentials: dict,
+        project: str,
         model_name: str = "gemini-embedding-001",
         output_dimensionality: int = 768,
         task_type: EmbeddingTaskType = EmbeddingTaskType.SEMANTIC_SIMILARITY,
@@ -70,7 +72,13 @@ class EmbeddingModel:
 
         self.logger = get_logger()
         self.logger.info(f"Initializing EmbeddingModel with {model_name}")
-        self.client = genai.Client(api_key=api_key)
+        parsed_credentials = Credentials.from_service_account_info(
+            credentials, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        self.client = genai.Client(
+            credentials=parsed_credentials,
+            project=project,
+        )
         self.logger.info(f"Initialized EmbeddingModel with {model_name}")
 
     @staticmethod
@@ -90,7 +98,9 @@ class EmbeddingModel:
         stop=stop_after_attempt(6),
         reraise=True,
     )
-    def _embed_with_retry(self, texts: List[str], task_type: EmbeddingTaskType) -> types.EmbedContentResponse:
+    def _embed_with_retry(
+        self, texts: List[str], task_type: EmbeddingTaskType
+    ) -> types.EmbedContentResponse:
         """
         Call the embedding API with retry logic.
 
@@ -135,7 +145,9 @@ class EmbeddingModel:
         normalized = embedding_array / norm
         return normalized.tolist()
 
-    def __call__(self, texts: List[str], task_type: EmbeddingTaskType | None = None) -> List[List[float]]:
+    def __call__(
+        self, texts: List[str], task_type: EmbeddingTaskType | None = None
+    ) -> List[List[float]]:
         """
         Embed a list of text strings into normalized vectors.
 
@@ -178,7 +190,9 @@ class EmbeddingModel:
         normalized_embeddings = []
         for embedding in response.embeddings:
             if self.output_dimensionality < 3072:
-                normalized_embeddings.append(self._normalize_embedding(embedding.values))
+                normalized_embeddings.append(
+                    self._normalize_embedding(embedding.values)
+                )
             else:
                 normalized_embeddings.append(list(embedding.values))
 

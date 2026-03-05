@@ -32,7 +32,8 @@ def get_qa_model(max_workers: int = 10) -> QAModel:
     if _QA_MODEL is None:
         with _qa_model_lock:
             _QA_MODEL = QAModel(
-                api_key=get_settings().google_api_key.get_secret_value(),
+                credentials=get_settings().google_credentials_parsed,
+                project=get_settings().google_cloud_project,
                 max_workers=max_workers,
             )
     return _QA_MODEL
@@ -48,6 +49,7 @@ def get_embedding_model() -> EmbeddingModel:
         with _embedding_model_lock:
             _EMBEDDING_MODEL = EmbeddingModel(
                 output_dimensionality=1536,
-                api_key=get_settings().google_api_key.get_secret_value(),
+                credentials=get_settings().google_credentials_parsed,
+                project=get_settings().google_cloud_project,
             )
     return _EMBEDDING_MODEL

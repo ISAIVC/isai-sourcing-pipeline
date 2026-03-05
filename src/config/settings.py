@@ -1,3 +1,5 @@
+import base64
+import json
 from functools import lru_cache
 
 from pydantic import Field, SecretStr
@@ -9,7 +11,12 @@ class Settings(BaseSettings):
 
     supabase_url: str = Field(alias="SUPABASE_URL")
     supabase_service_role_key: SecretStr = Field(alias="SUPABASE_SERVICE_ROLE_KEY")
-    google_api_key: SecretStr = Field(alias="GOOGLE_API_KEY")
+    google_cloud_location: str = Field(alias="GOOGLE_CLOUD_LOCATION", default="global")
+    google_genai_use_vertexai: bool = Field(
+        alias="GOOGLE_GENAI_USE_VERTEXAI", default=True
+    )
+    google_cloud_project: str = Field(alias="GOOGLE_CLOUD_PROJECT")
+    google_credentials: SecretStr = Field(alias="GOOGLE_CREDENTIALS")
     attio_cg_token: SecretStr = Field(alias="ATTIO_CG_TOKEN")
     attio_by_token: SecretStr = Field(alias="ATTIO_BY_TOKEN")
     traxcn_exports_bucket_name: str = Field(
@@ -39,6 +46,32 @@ class Settings(BaseSettings):
     compute_business_metric_batch_size: int = Field(
         alias="COMPUTE_BUSINESS_METRIC_BATCH_SIZE", default=200
     )
+
+    @property
+    def google_credentials_parsed(self) -> dict | None:
+        """
+        Parse and return Google credentials as a dictionary.
+
+        The credentials are stored as a base64-encoded string in the environment variable.
+        This property decodes and parses them into a dict for use with Google APIs.
+
+        Returns:
+            Dictionary with service account credentials, or None if not set
+        """
+        if self.google_credentials:
+            return json.loads(
+                base64.b64decode(self.google_credentials.get_secret_value()).decode(
+                    "utf-8"
+                )
+            )
+        return None
+
+    def validate_vertex_ai_config(self) -> None:
+        """Validate that required Vertex AI settings are present when enabled"""
+        if self.GOOGLE_GENAI_USE_VERTEXAI and not self.GOOGLE_CLOUD_PROJECT:
+            raise ValueError(
+                "GOOGLE_CLOUD_PROJECT must be set when GOOGLE_GENAI_USE_VERTEXAI is True"
+            )
 
 
 @lru_cache(maxsize=1)

@@ -9,6 +9,7 @@ from typing import Generic, List, Optional, TypeVar, Union
 from google import genai
 from google.genai import types
 from google.genai.errors import ClientError, ServerError
+from google.oauth2.service_account import Credentials
 from pydantic import BaseModel
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
@@ -116,11 +117,15 @@ class Question:
 class QAModel:
     def __init__(
         self,
-        api_key: str,
+        credentials: dict,
+        project: str,
         max_workers: int = 10,
         timeout: int = 120_000,
     ):
-        self.client = genai.Client(api_key=api_key)
+        parsed_credentials = Credentials.from_service_account_info(
+            credentials, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        self.client = genai.Client(credentials=parsed_credentials, project=project)
         self.logger = get_logger()
         self.max_workers = max_workers
         self.timeout = timeout
@@ -232,7 +237,9 @@ class QAModel:
             response_text = response.text
             try:
                 if VQARequest.use_grounding:
-                    validated_response = VQARequest.pydantic_model.model_validate_json(response_text)
+                    validated_response = VQARequest.pydantic_model.model_validate_json(
+                        response_text
+                    )
                 else:
                     response_json = json.loads(response_text)
                     validated_response = VQARequest.pydantic_model(**response_json)
