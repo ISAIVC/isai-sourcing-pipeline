@@ -47,7 +47,10 @@ def retrieve_domains_automatically(number: int = NB_DOMAINS_AUTO_MODE):
 
 @flow(name="website-enrichment-flow", timeout_seconds=5400)  # 1.5 hours
 def website_enrichment_flow(
-    domains: list[str], auto: bool = False, nb_domains: int = NB_DOMAINS_AUTO_MODE
+    domains: list[str],
+    auto: bool = False,
+    nb_domains: int = NB_DOMAINS_AUTO_MODE,
+    force: bool = False,
 ):
     logger = get_logger()
     settings = get_settings()
@@ -56,6 +59,32 @@ def website_enrichment_flow(
         domains = retrieve_domains_automatically(nb_domains)
     else:
         domains = list(set(domains))
+
+    if not force:
+        cutoff_date_str = (date.today() - timedelta(days=FRESHNESS_DAYS)).isoformat()
+        fresh_domains: set[str] = set()
+        client = get_supabase_client()
+        for i in range(0, len(domains), 1000):
+            chunk = domains[i : i + 1000]
+            rows = (
+                client.table("web_scraping_enrichment")
+                .select("domain")
+                .in_("domain", chunk)
+                .gte("sourcing_date", cutoff_date_str)
+                .eq("success", True)
+                .execute()
+            )
+            fresh_domains.update(row["domain"] for row in rows.data)
+        skipped = len(fresh_domains)
+        domains = [d for d in domains if d not in fresh_domains]
+        logger.info(
+            f"Skipping {skipped} domains with successful scraping in last {FRESHNESS_DAYS} days; "
+            f"{len(domains)} domains to process"
+        )
+        if not domains:
+            logger.info("All domains are fresh — nothing to scrape.")
+            return
+
     logger.info(f"Starting website enrichment for {len(domains)} domains")
     for i in range(0, len(domains), settings.website_enrichment_batch_size):
         logger.info(
