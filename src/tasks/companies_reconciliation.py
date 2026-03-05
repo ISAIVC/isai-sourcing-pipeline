@@ -94,14 +94,21 @@ def reconciliation_name(row) -> str | None:
     return _traxcn_or_cb_or_none(row, "tx_company_name", "cb_name")
 
 
-def reconciliation_hq_country(row, country_codes: dict[str, str]) -> str | None:
+def reconciliation_hq_country(row, country_codes: dict[str, str]) -> list[str] | None:
+    countries: list[str] = []
+
     tx_country = _val(row.get("tx_country"))
     if tx_country is not None:
-        return tx_country
+        countries.extend(c.strip() for c in tx_country.split(",") if c.strip())
+
     cb_code = _val(row.get("cb_country_code"))
     if cb_code is not None:
-        return country_codes.get(cb_code)
-    return None
+        cb_country = country_codes.get(cb_code)
+        if cb_country:
+            countries.append(cb_country)
+
+    unique = list(dict.fromkeys(countries))  # deduplicate, preserve order
+    return unique if unique else None
 
 
 def reconciliation_hq_city(row) -> str | None:
