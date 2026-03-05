@@ -110,6 +110,7 @@ class Question:
     system_prompt: str
     pydantic_model: Optional[BaseModel] = None
     temperature: float = 1.0
+    use_grounding: bool = False
 
 
 class QAModel:
@@ -203,11 +204,14 @@ class QAModel:
 
         # Add JSON schema if structured output is requested
         if VQARequest.pydantic_model is not None:
-            # Request JSON output
             config.response_mime_type = "application/json"
-            # Add schema from pydantic model
             schema = VQARequest.pydantic_model.model_json_schema()
-            config.response_schema = schema
+            if VQARequest.use_grounding:
+                # Grounding requires response_json_schema (not response_schema) + google_search tool
+                config.tools = [types.Tool(google_search=types.GoogleSearch())]
+                config.response_json_schema = schema
+            else:
+                config.response_schema = schema
 
         # Call the model with retry
         response = self._generate_content_with_retry(contents, config, model_name)
@@ -225,11 +229,13 @@ class QAModel:
 
         # Parse response
         if VQARequest.pydantic_model is not None:
-            # Parse JSON and validate with Pydantic
             response_text = response.text
             try:
-                response_json = json.loads(response_text)
-                validated_response = VQARequest.pydantic_model(**response_json)
+                if VQARequest.use_grounding:
+                    validated_response = VQARequest.pydantic_model.model_validate_json(response_text)
+                else:
+                    response_json = json.loads(response_text)
+                    validated_response = VQARequest.pydantic_model(**response_json)
                 return Answer(validated_response)
             except (json.JSONDecodeError, ValueError) as e:
                 self.logger.error(f"Failed to parse structured response: {e}")
