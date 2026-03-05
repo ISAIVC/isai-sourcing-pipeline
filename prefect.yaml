@@ -226,7 +226,7 @@ deployments:
   tags: ["dealroom-enrichment"]
   description: "Dealroom enrichment deployment"
   schedule:
-    cron: "0 * * * *"
+    cron: "0 */12 * * *"
     timezone: "UTC"
   entrypoint: src/flows/dealroom_enrichment.py:dealroom_enrichment_flow
   parameters:
