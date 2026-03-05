@@ -10,6 +10,6 @@ from .enrichment import enrichment_flow
     task_runner=ThreadPoolTaskRunner(max_workers=8),
     timeout_seconds=7200,
 )  # 2 hours
-def full_pipeline_flow(domains: list[str]):
-    enrichment_flow(domains)
+def full_pipeline_flow(domains: list[str], force: bool = False):
+    enrichment_flow(domains, force)
     business_processing_flow(domains)

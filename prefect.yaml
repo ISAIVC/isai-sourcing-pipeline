@@ -66,6 +66,7 @@ deployments:
       - acumen.network
       - adaptavate.com
       - adaptional.com
+    force: false
   work_pool: 
     name: ecs-push-pool
     job_variables:
@@ -96,6 +97,7 @@ deployments:
       - acumen.network
       - adaptavate.com
       - adaptional.com
+    force: false
   work_pool: 
     name: ecs-push-pool
     job_variables:
@@ -188,6 +190,7 @@ deployments:
     domains:
       - ""
     auto: true
+    force: false
   work_pool:
     name: ecs-push-pool
     job_variables:
