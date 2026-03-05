@@ -87,7 +87,7 @@ class EmbeddingModel:
         if isinstance(exception, ServerError):
             return exception.code in {408, 429, 500, 503, 504}
         if isinstance(exception, ClientError):
-            return exception.code == 429
+            return exception.code in {408, 429, 500, 503, 504}
         if isinstance(exception, (ConnectionError, TimeoutError, OSError)):
             return True
         return False
