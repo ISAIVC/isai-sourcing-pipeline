@@ -10,7 +10,6 @@ from src.utils.logger import get_logger
 
 TAG_COLUMNS: list[str] = [
     "fund_prime_scope",
-    "hq_country",
     "hq_city",
     "gtm_target_cg",
     "gtm_target_by",
@@ -26,6 +25,7 @@ TAG_COLUMNS: list[str] = [
 ]
 
 MULTITAG_COLUMNS: list[str] = [
+    "hq_country",
     "global_2000_clients",
     "cg_key_platforms",
     "by_key_platforms",
