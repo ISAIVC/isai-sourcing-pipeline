@@ -18,3 +18,4 @@ CLAUDE.md
 .mcp.json
 .DS_Store
 terraform/.terraform.lock.hcl
+ignored/*
