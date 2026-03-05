@@ -48,7 +48,7 @@ def get_embedding_model() -> EmbeddingModel:
     if _EMBEDDING_MODEL is None:
         with _embedding_model_lock:
             _EMBEDDING_MODEL = EmbeddingModel(
-                output_dimensionality=1536,
+                output_dimensionality=768,
                 credentials=get_settings().google_credentials_parsed,
                 project=get_settings().google_cloud_project,
             )
