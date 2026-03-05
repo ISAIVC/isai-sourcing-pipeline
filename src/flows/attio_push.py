@@ -2,6 +2,7 @@ from prefect import flow, task
 
 from src.config.settings import get_settings
 from src.tasks.attio_push import attio_push
+from src.tasks.compute_one_pager import compute_one_pager
 from src.tasks.pull_attio_status import pull_attio_status
 from src.utils.logger import get_logger
 
@@ -15,10 +16,15 @@ def attio_push_loop(domains: list[str], workspace: str = "cg") -> None:
 
     for domain in domains:
         try:
+            compute_one_pager([domain], force=False)  # no-op if fresh (60-day TTL)
+        except Exception as e:
+            logger.warning(f"[{domain}] one-pager failed (push will proceed): {e}")
+
+        try:
             attio_push(domain, workspace)
             succeeded.append(domain)
         except Exception as e:
-            logger.error(f"[{domain}] failed: {e}")
+            logger.error(f"[{domain}] attio push failed: {e}")
             failed.append(domain)
 
     if failed:

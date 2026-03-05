@@ -24,6 +24,10 @@ _BASE_FIELD_MAP = [
     ("all_investors", "all_investors", "multiselect"),
     ("headcount_growth_l12m", "headcount_growth_l12m", "number"),
     ("all_industries_served", "all_industries_served", "multiselect"),
+    ("overview", "one_pager_overview", "text"),
+    ("management_and_team", "one_pager_management_and_team", "text"),
+    ("solution", "one_pager_solution", "text"),
+    ("market_and_competition", "one_pager_market_and_competition", "text"),
 ]
 
 WORKSPACE_CONFIG = {
@@ -34,9 +38,9 @@ WORKSPACE_CONFIG = {
             ("primary_sector_served_cg", "sector", "select"),
         ],
         "dealflow_values": {
-            "status":     [{"status": "To watch"}],
+            "status": [{"status": "To watch"}],
             "dd_stage_1": [{"status": "I-CG Discovery"}],
-            "channel":    [{"option": "Data Driven Sourcing"}],
+            "channel": [{"option": "Data Driven Sourcing"}],
         },
     },
     "by": {
@@ -46,8 +50,8 @@ WORKSPACE_CONFIG = {
             ("primary_sector_served_by", "sector", "select"),
         ],
         "dealflow_values": {
-            "status_3":  [{"status": "To watch"}],
-            "dd_stage":  [{"option": "New"}],
+            "status_3": [{"status": "To watch"}],
+            "dd_stage": [{"option": "New"}],
             "channel_6": [{"option": "Data Driven Sourcing"}],
         },
     },
@@ -138,7 +142,9 @@ def _ensure_attributes(headers: dict, field_map: list, logger) -> None:
             logger.error(f"[error]   {slug}: {cr.status_code} {cr.text}")
 
 
-def _ensure_select_options(headers: dict, values: dict, field_map: list, logger) -> None:
+def _ensure_select_options(
+    headers: dict, values: dict, field_map: list, logger
+) -> None:
     slug_to_type = {slug: fmt_type for _, slug, fmt_type in field_map}
 
     for slug, formatted_value in values.items():
@@ -164,6 +170,21 @@ def _ensure_select_options(headers: dict, values: dict, field_map: list, logger)
                     f"[warn] option '{option_title}' for '{slug}': "
                     f"{resp.status_code} {resp.text}"
                 )
+
+
+def _fetch_one_pager_row(domain: str, logger) -> dict:
+    client = get_supabase_client()
+    result = (
+        client.from_("one_pager")
+        .select("overview, management_and_team, solution, market_and_competition")
+        .eq("domain", domain)
+        .maybe_single()
+        .execute()
+    )
+    if result is None or not result.data:
+        logger.warning(f"No one_pager record for domain={domain}")
+        return {}
+    return result.data
 
 
 def _fetch_sourcing_row(domain: str, logger) -> dict:
@@ -246,7 +267,9 @@ def _find_dealflow_entry(headers: dict, domain: str, logger) -> str | None:
     return None
 
 
-def _create_dealflow_entry(headers: dict, record_id: str, dealflow_values: dict, logger) -> str:
+def _create_dealflow_entry(
+    headers: dict, record_id: str, dealflow_values: dict, logger
+) -> str:
     logger.info("Creating new dealflow entry...")
     url = f"{ATTIO_BASE}/lists/dealflow/entries"
     payload = {
@@ -280,6 +303,8 @@ def attio_push(domain: str, workspace: str = "cg") -> None:
     logger.info(f"[{workspace.upper()}] Pushing: {domain}")
     _ensure_attributes(headers, field_map, logger)
     row = _fetch_sourcing_row(domain, logger)
+    one_pager = _fetch_one_pager_row(domain, logger)
+    row.update(one_pager)
     values = _build_company_values(row, domain, field_map, logger)
     _ensure_select_options(headers, values, field_map, logger)
     record_id = _assert_company_record(headers, values, logger)
