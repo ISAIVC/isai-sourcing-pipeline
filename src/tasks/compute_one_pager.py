@@ -103,6 +103,19 @@ evaluate market maturity and fragmentation, and note whether a category leader h
 4. Professional VC-memo tone. Use "The company…" / "The solution enables…" framing.
 5. Return only the JSON object — no extra commentary.
 6. Write normal text, no markdown or html!
+
+## One Pager Example for Foresight Works
+### Overview
+Schedule intelligence platform for large capital projects. Foresight Works develops an AI-first project control platform (mainly focused on data center owners/developers for now) that ingests Primavera P6 / MS Project schedules and applies proprietary ML weighting + reference class forecasting to predict schedule risks, anticipate delay propagation, and support on-time/on-budget delivery for large capex programs. Beyond analytics & generative reporting, the roadmap includes generative scheduling and generative control. The solution leverages co-founder's PhD work and thousands of P6 projects collected (DCs, infra, buildings…).
+
+### Management / Team
+Foresight Works is led by co-founder/CEO Igor Shitov, who started his career in finance (investment banking, private equity and hedge fund) before gaining operational exposure to real estate and infrastructure projects, and co-founder Dr. Atif Ansar, an Oxford professor since 2010 whose research focuses on megaproject performance, optimism bias, and the use of data science/psychology in cost & schedule forecasting (formerly at the World Bank on infrastructure programs), now almost full-time at Foresight.
+
+### Solution
+Foresight's GTM is a top-down, owner-led motion, typically selling to portfolio decision makers before rolling out to planning teams on real schedule data. The company has built strong traction in data centers (23 of 36 customers, mostly US/Europe), with notable contracts including UK Ministry of Defence, Crusoe, NTT Global Data Centers and OpenAI. Commercially, it sells annual SaaS licenses priced by #projects and MW, with a land-and-expand strategy at portfolio level; while data centers remain the initial beachhead, the stated ambition is to expand over time into other verticals (e.g. manufacturing) and to transition from owners to general contractors.
+
+### Market & Competition
+The market for AI-driven project controls / schedule intelligence remains fragmented, with several emerging players (e.g. nPlan, Nodes & Links, SmartPM) competing alongside the broader "P6 + manual reporting" status quo. There is no clear category leader yet, and most solutions appear to be at a broadly similar level of maturity — in part because this is still a relatively new and immature market. In this landscape, Foresight differentiates itself through a more analytics-heavy positioning rather than focusing primarily on probabilistic simulations or dashboarding. It emphasizes schedule normalization, ML-based activity weighting, and reference-class forecasting to produce standardized, portfolio-level risk signals. This analytical depth is reinforced by its concentration in the data center vertical, where higher customer density improves the accuracy of its benchmarking and enables more homogeneous historical datasets, improving model calibration and benchmarking and giving Foresight a clearer edge in this specific segment compared to more horizontally positioned competitors.
 """
 
 
