@@ -39,8 +39,8 @@ variable "public_subnet_cidrs" {
 
 # Secrets variables
 
-variable "google_api_key" {
-  description = "Google API Key"
+variable "google_credentials" {
+  description = "Google Credentials"
   type        = string
   sensitive   = true
 }

@@ -20,8 +20,8 @@
                 "image": "{{ image }}",
                 "secrets": [
                     {
-                        "name": "GOOGLE_API_KEY",
-                        "valueFrom": "${secrets_arn}:google-api-key::"
+                        "name": "GOOGLE_CREDENTIALS",
+                        "valueFrom": "${secrets_arn}:google-credentials::"
                     },
                     {
                         "name": "DEALROOM_API_KEY",

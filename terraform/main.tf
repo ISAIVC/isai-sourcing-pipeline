@@ -28,7 +28,7 @@ module "secrets" {
   name_prefix = local.name_prefix
   tags        = local.common_tags
   secrets = {
-    google-api-key            = var.google_api_key
+    google-credentials            = var.google_credentials
     dealroom-api-key          = var.dealroom_api_key
     supabase-url              = var.supabase_url
     supabase-service-role-key = var.supabase_service_role_key

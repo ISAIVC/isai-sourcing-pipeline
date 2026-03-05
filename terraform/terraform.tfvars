@@ -20,6 +20,18 @@ task_env_vars = [
     value = "dev"
   },
   {
+    name  = "GOOGLE_CLOUD_LOCATION"
+    value = "global"
+  },
+  {
+    name  = "GOOGLE_GENAI_USE_VERTEXAI"
+    value = "true"
+  },
+  {
+    name  = "GOOGLE_CLOUD_PROJECT"
+    value = "data-driven-sourcing-486915"
+  },
+  {
       name  = "PREFECT_FLOWS_HEARTBEAT_FREQUENCY"
       value = "30"
   },
