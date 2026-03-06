@@ -260,7 +260,7 @@ def deduced_industry_tags(
     primary_sector_served_by : take the first index where BY and get the sector, if no BY then None
     primary_industry_served_by : take the first index where BY and get the industry, if no BY then None
     """
-    scopes = [industry_to_scope_mapping[industry] for industry in listed_industries]
+    scopes = [industry_to_scope_mapping[industry] for industry in listed_industries[:2]]
 
     unique_scopes = set(scopes)
     if unique_scopes == {"BY"}:
@@ -271,25 +271,51 @@ def deduced_industry_tags(
         scope = "BOTH"
 
     first_cg_industry = None
-    first_cg_sector = None
     first_by_industry = None
-    first_by_sector = None
 
     for industry in listed_industries:
         if industry_to_scope_mapping[industry] == "CG" and first_cg_industry is None:
             first_cg_industry = industry
-            first_cg_sector = industry_to_sector_mapping[industry]
         if industry_to_scope_mapping[industry] == "BY" and first_by_industry is None:
             first_by_industry = industry
-            first_by_sector = industry_to_sector_mapping[industry]
         if first_cg_industry and first_by_industry:
             break
 
+    all_cg_industries = [
+        industry
+        for industry in listed_industries
+        if industry_to_scope_mapping[industry] == "CG"
+    ]
+    all_by_industries = [
+        industry
+        for industry in listed_industries
+        if industry_to_scope_mapping[industry] == "BY"
+    ]
+
+    all_cg_sectors = [
+        industry_to_sector_mapping[industry] for industry in all_cg_industries
+    ]
+    all_by_sectors = [
+        industry_to_sector_mapping[industry] for industry in all_by_industries
+    ]
+
+    unique_cg_sectors = set(all_cg_sectors)
+    unique_by_sectors = set(all_by_sectors)
+
+    if len(unique_cg_sectors) == 1:
+        primary_sector_served_cg = list(unique_cg_sectors)[0]
+    else:
+        primary_sector_served_cg = "cross_sector"
+    if len(unique_by_sectors) == 1:
+        primary_sector_served_by = list(unique_by_sectors)[0]
+    else:
+        primary_sector_served_by = "cross_sector"
+
     return {
         "scope": scope,
-        "primary_sector_served_cg": first_cg_sector,
+        "primary_sector_served_cg": primary_sector_served_cg,
         "primary_industry_served_cg": first_cg_industry,
-        "primary_sector_served_by": first_by_sector,
+        "primary_sector_served_by": primary_sector_served_by,
         "primary_industry_served_by": first_by_industry,
     }
 
