@@ -96,5 +96,5 @@ def embed_textual_dimensions(domains: list[str]):
         rows,
         on_conflict="domain",
         logger=logger,
-        batch_size=25,
+        batch_size=100,
     )
