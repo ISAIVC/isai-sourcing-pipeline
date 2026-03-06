@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 from datetime import datetime
 
@@ -110,11 +109,11 @@ def push_first_iteration_to_supabase(domains_dict: dict[str, str], error: bool):
     name="website_crawling",
     cache_policy=NO_CACHE,
     cache_result_in_memory=False,
-    timeout_seconds=600,
+    timeout_seconds=420,
     retries=2,
     retry_delay_seconds=30,
 )
-def website_crawling(domains: list[str]):
+async def website_crawling(domains: list[str]):
     logger = get_logger()
     crawler = Crawler(rate_limit=5, max_retries=3, page_timeout=45000)
     qa_model = get_qa_model()
@@ -123,7 +122,7 @@ def website_crawling(domains: list[str]):
 
     # 1. Crawl the websites
     urls = [f"https://{domain}" for domain in domains]
-    crawl_output = asyncio.run(crawler.crawl(urls))
+    crawl_output = await crawler.crawl(urls)
     logger.info(f"Crawled {len(crawl_output.success)} websites")
     if len(crawl_output.errors) > 0:
         logger.error(
@@ -176,7 +175,7 @@ def website_crawling(domains: list[str]):
 
         # 4. Crawl other pages if needed
         logger.info(f"Crawling {len(new_pages_to_crawl)} new pages...")
-        crawl_output = asyncio.run(crawler.crawl(new_pages_to_crawl))
+        crawl_output = await crawler.crawl(new_pages_to_crawl)
         logger.info(f"Crawled {len(crawl_output.success)} new pages")
         if len(crawl_output.errors) > 0:
             logger.error(
