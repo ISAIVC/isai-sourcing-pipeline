@@ -188,17 +188,17 @@ def _fetch_one_pager_row(domain: str, logger) -> dict:
 
 
 def _fetch_sourcing_row(domain: str, logger) -> dict:
-    logger.info(f"Fetching sourcing_view record for domain: {domain}")
+    logger.info(f"Fetching sourcing_mv record for domain: {domain}")
     client = get_supabase_client()
     result = (
-        client.from_("sourcing_view")
+        client.from_("sourcing_mv")
         .select("*")
         .eq("website", domain)
         .single()
         .execute()
     )
     if not result.data:
-        raise ValueError(f"No record found in sourcing_view for website='{domain}'")
+        raise ValueError(f"No record found in sourcing_mv for website='{domain}'")
     logger.info(f"Found record: {result.data.get('name', '(no name)')}")
     return result.data
 

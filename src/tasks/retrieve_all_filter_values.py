@@ -39,7 +39,7 @@ MULTITAG_COLUMNS: list[str] = [
     "tech_tags",
 ]
 
-_VIEW_NAME = "sourcing_view"
+_VIEW_NAME = "sourcing_mv"
 _PAGE_SIZE = 1000
 _MAX_VALUES_PER_COLUMN = 500
 

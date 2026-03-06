@@ -254,12 +254,12 @@ def compute_one_pager(domains: list[str], force: bool = False):
 
     logger.info(f"Processing {len(domains_to_process)} domains")
 
-    # Step 2 – Fetch sourcing_view rows
+    # Step 2 – Fetch sourcing_mv rows
     sourcing_rows = fetch_in_batches(
-        client, "sourcing_view", "website", domains_to_process, select=SELECT_FIELDS
+        client, "sourcing_mv", "website", domains_to_process, select=SELECT_FIELDS
     )
     domain_to_row = {row["website"]: row for row in sourcing_rows}
-    logger.info(f"Fetched {len(domain_to_row)} sourcing_view rows")
+    logger.info(f"Fetched {len(domain_to_row)} sourcing_mv rows")
 
     # Step 3 – Build questions
     questions: list[Question] = []
@@ -268,7 +268,7 @@ def compute_one_pager(domains: list[str], force: bool = False):
     for domain in domains_to_process:
         row = domain_to_row.get(domain)
         if not row:
-            logger.warning(f"No sourcing_view row found for domain: {domain}")
+            logger.warning(f"No sourcing_mv row found for domain: {domain}")
             continue
 
         context = build_context(row)
