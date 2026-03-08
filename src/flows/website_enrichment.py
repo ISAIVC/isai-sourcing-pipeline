@@ -38,7 +38,7 @@ def _filter_stale_domains(domains: list[str]) -> list[str]:
 
 
 @task(name="website_enrichment_task")
-def website_enrichment_task(domains: list[str], force: bool = False):
+async def website_enrichment_task(domains: list[str], force: bool = False):
     settings = get_settings()
     domains = list(set(domains))
     logger = get_logger()
@@ -55,7 +55,7 @@ def website_enrichment_task(domains: list[str], force: bool = False):
             f"Processing batch {i // settings.website_enrichment_batch_size + 1}/{len(domains) // settings.website_enrichment_batch_size}"
         )
         batch = domains[i : i + settings.website_enrichment_batch_size]
-        results = website_crawling(batch)
+        results = await website_crawling(batch)
         inputs = [
             WebsiteEnrichmentQAInput(
                 company_id=data.record_id, domain=domain, content=data.content
@@ -79,7 +79,7 @@ def retrieve_domains_automatically(number: int = NB_DOMAINS_AUTO_MODE):
 
 
 @flow(name="website-enrichment-flow", timeout_seconds=5400)  # 1.5 hours
-def website_enrichment_flow(
+async def website_enrichment_flow(
     domains: list[str],
     auto: bool = False,
     nb_domains: int = NB_DOMAINS_AUTO_MODE,
@@ -105,7 +105,7 @@ def website_enrichment_flow(
             f"Processing batch {i // settings.website_enrichment_batch_size + 1}/{len(domains) // settings.website_enrichment_batch_size}"
         )
         batch = domains[i : i + settings.website_enrichment_batch_size]
-        results = website_crawling(batch)
+        results = await website_crawling(batch)
         inputs = [
             WebsiteEnrichmentQAInput(
                 company_id=data.record_id, domain=domain, content=data.content
