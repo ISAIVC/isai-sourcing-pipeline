@@ -177,8 +177,8 @@ class QAModel:
 
     @retry(
         retry=retry_if_exception(_is_retryable_error.__func__),
-        wait=wait_exponential(multiplier=2, min=4, max=60),
-        stop=stop_after_attempt(6),
+        wait=wait_exponential(multiplier=2, min=4, max=120),
+        stop=stop_after_attempt(10),
         reraise=True,
     )
     def _generate_content_with_retry(
