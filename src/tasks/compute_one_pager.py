@@ -148,7 +148,10 @@ def build_company_profile(row: dict) -> str:
     inc_date = row.get("inc_date")
     founded_year = str(inc_date)[:4] if inc_date else "N/A"
 
-    hq_country = row.get("hq_country") or "N/A"
+    hq_country = row.get("hq_country")
+    if isinstance(hq_country, list):
+        hq_country = hq_country[0] if hq_country else "N/A"
+    hq_country = hq_country or "N/A"
 
     headcount = row.get("headcount")
     team_size = f"~{headcount}" if headcount else "N/A"
@@ -182,8 +185,14 @@ def build_equity_story(row: dict) -> str:
     first_year = str(first_round)[:4] if first_round else "N/A"
     last_year = str(last_date)[:4] if last_date else "N/A"
 
+    if isinstance(last_investors, list):
+        last_investors = ", ".join(last_investors) if last_investors else None
     investors = last_investors or "N/A"
-    all_investors = row.get("all_investors") or "N/A"
+
+    all_investors = row.get("all_investors")
+    if isinstance(all_investors, list):
+        all_investors = ", ".join(all_investors) if all_investors else None
+    all_investors = all_investors or "N/A"
 
     return (
         f"Total raised: {total_raised_m} since {first_year}\n"

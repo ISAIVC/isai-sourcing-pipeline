@@ -28,6 +28,8 @@ _BASE_FIELD_MAP = [
     ("management_and_team", "one_pager_management_and_team", "text"),
     ("solution", "one_pager_solution", "text"),
     ("market_and_competition", "one_pager_market_and_competition", "text"),
+    ("company_profile", "one_pager_company_profile", "text"),
+    ("equity_story", "one_pager_equity_story", "text"),
 ]
 
 WORKSPACE_CONFIG = {
@@ -176,7 +178,7 @@ def _fetch_one_pager_row(domain: str, logger) -> dict:
     client = get_supabase_client()
     result = (
         client.from_("one_pager")
-        .select("overview, management_and_team, solution, market_and_competition")
+        .select("overview, management_and_team, solution, market_and_competition, company_profile, equity_story")
         .eq("domain", domain)
         .maybe_single()
         .execute()
