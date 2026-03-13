@@ -55,6 +55,25 @@ class OnePager(BaseModel):
             "market maturity, category leader status. 900–1,100 characters."
         ),
     )
+    company_profile: str = Field(
+        ...,
+        description=(
+            "Structured company facts formatted exactly as:\n"
+            "Founded: YEAR\n"
+            "HQ: COUNTRY\n"
+            "Team size: ~HEADCOUNT\n"
+            "Business model: MODEL"
+        ),
+    )
+    equity_story: str = Field(
+        ...,
+        description=(
+            "Funding overview formatted exactly as:\n"
+            "Total raised: $XM since YEAR\n"
+            "Last round: $XM led by INVESTORS in YEAR\n"
+            "Investors: LIST"
+        ),
+    )
 
 
 SELECT_FIELDS = """
@@ -123,6 +142,54 @@ def _fmt(label: str, value) -> str:
     if value is None or value == "" or value == []:
         return ""
     return f"- {label}: {value}"
+
+
+def build_company_profile(row: dict) -> str:
+    inc_date = row.get("inc_date")
+    founded_year = str(inc_date)[:4] if inc_date else "N/A"
+
+    hq_country = row.get("hq_country") or "N/A"
+
+    headcount = row.get("headcount")
+    team_size = f"~{headcount}" if headcount else "N/A"
+
+    business_model = row.get("business_model") or "N/A"
+
+    return (
+        f"Founded: {founded_year}\n"
+        f"HQ: {hq_country}\n"
+        f"Team size: {team_size}\n"
+        f"Business model: {business_model}"
+    )
+
+
+def build_equity_story(row: dict) -> str:
+    total_raised = row.get("total_amount_raised")
+    first_round = row.get("first_vc_round_date")
+
+    last_amount = row.get("last_funding_amount")
+    last_investors = row.get("last_round_lead_investors")
+    last_date = row.get("last_funding_date")
+
+    total_raised_m = (
+        f"${round(total_raised / 1_000_000)}M" if total_raised else "N/A"
+    )
+
+    last_amount_m = (
+        f"${round(last_amount / 1_000_000)}M" if last_amount else "N/A"
+    )
+
+    first_year = str(first_round)[:4] if first_round else "N/A"
+    last_year = str(last_date)[:4] if last_date else "N/A"
+
+    investors = last_investors or "N/A"
+    all_investors = row.get("all_investors") or "N/A"
+
+    return (
+        f"Total raised: {total_raised_m} since {first_year}\n"
+        f"Last round: {last_amount_m} led by {investors} in {last_year}\n"
+        f"Investors: {all_investors}"
+    )
 
 
 def build_context(row: dict) -> str:
@@ -300,9 +367,12 @@ def compute_one_pager(domains: list[str], force: bool = False):
             logger.warning(f"No answer returned for domain: {domain}")
             continue
         one_pager: OnePager = answer.structured_response
+        row = domain_to_row.get(domain)
         records.append(
             {
                 "domain": domain,
+                "company_profile": build_company_profile(row),
+                "equity_story": build_equity_story(row),
                 "overview": one_pager.overview,
                 "management_and_team": one_pager.management_and_team,
                 "solution": one_pager.solution,
