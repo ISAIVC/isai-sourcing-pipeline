@@ -41,7 +41,7 @@ MULTITAG_COLUMNS: list[str] = [
 
 _VIEW_NAME = "sourcing_mv"
 _PAGE_SIZE = 1000
-_MAX_VALUES_PER_COLUMN = 500
+_MAX_VALUES_PER_COLUMN = 10000
 
 
 @task(name="retrieve_all_filter_values")
