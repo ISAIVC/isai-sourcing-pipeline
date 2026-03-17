@@ -61,8 +61,8 @@ def embed_and_compute_scores(
 @flow(
     name="business-processing-flow",
     task_runner=ThreadPoolTaskRunner(max_workers=8),
-    timeout_seconds=7200,
-)  # 2 hours
+    timeout_seconds=14400,
+)  # 4 hours
 def business_processing_flow(
     domains: list[str],
     config: Optional[BusinessProcessingConfig] = BusinessProcessingConfig(),
