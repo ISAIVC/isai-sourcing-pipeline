@@ -1,3 +1,5 @@
+import random
+from datetime import date, timedelta
 from typing import Optional
 
 from prefect import flow, task
@@ -16,6 +18,18 @@ from src.tasks import (
     pull_attio_status,
 )
 from src.utils.logger import get_logger
+
+FRESHNESS_DAYS = 180  # 6 months
+NB_DOMAINS_AUTO_MODE = 200
+
+TASK_REPRESENTATIVE_COLUMNS: dict[str, str] = {
+    "sync_attio_status": "in_attio",
+    "compute_fuzzy_matching_metrics": "competitors_cg",
+    "compute_funding_metrics": "vc_current_stage",
+    "compute_founders_values": "founders_background",
+    "annotate_company_tags": "scope",
+    "compute_scores": "solution_fit_cg",
+}
 
 
 def retrieve_all_domains_in_business_computed_values():
@@ -38,6 +52,58 @@ def retrieve_all_domains_in_business_computed_values():
     return domains
 
 
+def _get_enabled_representative_columns(config: "BusinessProcessingConfig") -> list[str]:
+    return [
+        col
+        for task_flag, col in TASK_REPRESENTATIVE_COLUMNS.items()
+        if getattr(config, task_flag, False)
+    ]
+
+
+def _get_scraped_domains(client) -> set[str]:
+    page_size = 1000
+    offset = 0
+    domains: set[str] = set()
+    while True:
+        rows = (
+            client.table("web_scraping_enrichment")
+            .select("domain")
+            .eq("success", True)
+            .not_.is_("description", "null")
+            .range(offset, offset + page_size - 1)
+            .execute()
+            .data
+        )
+        domains.update(row["domain"] for row in rows)
+        if len(rows) < page_size:
+            break
+        offset += page_size
+    return domains
+
+
+def _get_fresh_complete_domains(
+    client, columns: list[str], cutoff_date_str: str
+) -> set[str]:
+    page_size = 1000
+    offset = 0
+    domains: set[str] = set()
+    while True:
+        query = (
+            client.table("business_computed_values")
+            .select("domain")
+            .gte("updated_at", cutoff_date_str)
+        )
+        for col in columns:
+            query = query.not_.is_(col, "null")
+        rows = query.range(offset, offset + page_size - 1).execute().data
+        domains.update(row["domain"] for row in rows)
+        if len(rows) < page_size:
+            break
+        offset += page_size
+    return domains
+
+
+
 class BusinessProcessingConfig(BaseModel):
     sync_attio_status: bool = Field(default=True)
     compute_fuzzy_matching_metrics: bool = Field(default=True)
@@ -46,6 +112,35 @@ class BusinessProcessingConfig(BaseModel):
     annotate_company_tags: bool = Field(default=True)
     embed_textual_dimensions: bool = Field(default=True)
     compute_scores: bool = Field(default=True)
+
+
+@task(name="retrieve_business_domains_automatically")
+def retrieve_domains_automatically(
+    nb_domains: int = NB_DOMAINS_AUTO_MODE,
+    config: BusinessProcessingConfig = BusinessProcessingConfig(),
+) -> list[str]:
+    logger = get_logger()
+    columns = _get_enabled_representative_columns(config)
+    if not columns:
+        logger.warning("No tasks enabled in config — no columns to check")
+        return []
+
+    cutoff_date_str = (date.today() - timedelta(days=FRESHNESS_DAYS)).isoformat()
+    client = get_supabase_client()
+
+    scraped = _get_scraped_domains(client)
+    logger.info(f"Found {len(scraped)} successfully scraped domains")
+
+    fresh_complete = _get_fresh_complete_domains(client, columns, cutoff_date_str)
+    logger.info(f"Found {len(fresh_complete)} fresh and complete domains to exclude")
+
+    candidates = list(scraped - fresh_complete)
+    logger.info(f"Found {len(candidates)} candidate domains (new, incomplete, or stale)")
+
+    random.shuffle(candidates)
+    result = candidates[:nb_domains]
+    logger.info(f"Auto mode selected {len(result)} domains")
+    return result
 
 
 @task(name="embed_and_compute_scores")
@@ -64,13 +159,21 @@ def embed_and_compute_scores(
     timeout_seconds=14400,
 )  # 4 hours
 def business_processing_flow(
-    domains: list[str],
+    domains: list[str] = None,
     config: Optional[BusinessProcessingConfig] = BusinessProcessingConfig(),
     recompute_all: bool = False,
+    auto: bool = False,
+    nb_domains: int = NB_DOMAINS_AUTO_MODE,
 ):
     logger = get_logger()
-    if recompute_all:
+    if auto:
+        logger.info(f"Auto mode: retrieving up to {nb_domains} domains")
+        domains = retrieve_domains_automatically(nb_domains, config)
+        logger.info(f"Auto mode retrieved {len(domains)} domains")
+    elif recompute_all:
         domains = retrieve_all_domains_in_business_computed_values()
+    elif not domains:
+        raise ValueError("Provide domains, set auto=True, or set recompute_all=True")
     domains = list(set(domains))
     logger.info(f"Processing {len(domains)} domains")
     settings = get_settings()

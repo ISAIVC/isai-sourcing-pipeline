@@ -114,20 +114,11 @@ deployments:
   tags: ["business-processing"]
   description: "Business processing deployment"
   schedule:
+    cron: "0 * * * *"
+    timezone: "UTC"
   entrypoint: src/flows/business_processing.py:business_processing_flow
   parameters:
-    domains: 
-      - aceiss.com
-      - acelfil.com
-      - acerta.ai
-      - acodis.io
-      - actifile.com
-      - activatedscale.com
-      - activecharge.us
-      - activecomply.com
-      - acumen.network
-      - adaptavate.com
-      - adaptional.com
+    domains: []
     config:
       sync_attio_status: true
       compute_fuzzy_matching_metrics: true
@@ -136,7 +127,7 @@ deployments:
       annotate_company_tags: true
       embed_textual_dimensions: true
       compute_scores: true
-    recompute_all: false
+    auto: true
   work_pool: 
     name: ecs-push-pool
     job_variables:
