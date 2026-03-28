@@ -109,7 +109,7 @@ def push_first_iteration_to_supabase(domains_dict: dict[str, str], error: bool):
     name="website_crawling",
     cache_policy=NO_CACHE,
     cache_result_in_memory=False,
-    timeout_seconds=420,
+    timeout_seconds=1200,  # 15 minutes
     retries=2,
     retry_delay_seconds=30,
 )
