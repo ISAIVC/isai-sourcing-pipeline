@@ -13,7 +13,7 @@ resource "aws_ecr_lifecycle_policy" "main" {
         rulePriority = 1
         description  = "Delete images older than 1 week"
         selection = {
-          tagStatus   = "any"
+          tagStatus   = "untagged"
           countType   = "sinceImagePushed"
           countUnit   = "days"
           countNumber = 7
