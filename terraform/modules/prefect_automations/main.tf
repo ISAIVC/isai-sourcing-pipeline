@@ -16,7 +16,7 @@ resource "prefect_automation" "crash_zombie_flows" {
       for_each      = ["prefect.resource.id"]
       posture       = "Proactive"
       threshold     = 1
-      within        = 90
+      within        = 120
     }
   }
 
