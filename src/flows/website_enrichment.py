@@ -12,12 +12,25 @@ NB_DOMAINS_AUTO_MODE = 200
 
 
 def _filter_stale_domains(domains: list[str]) -> list[str]:
-    """Return only domains that lack a successful scrape within FRESHNESS_DAYS."""
+    """Return only domains that should be scraped.
+
+    Rules:
+    - Skip if success=True within the last FRESHNESS_DAYS (already fresh).
+    - Skip permanently if the domain has never succeeded (no success=True ever)
+      but has at least one failure (success=False). These are sites blocked to
+      scrapers — retrying burns Gemini credits with no chance of success.
+    - Retry everything else: domains that succeeded before (but are now stale),
+      and domains with only null records (infra crash, not a site block).
+    """
     cutoff_date_str = (date.today() - timedelta(days=FRESHNESS_DAYS)).isoformat()
     fresh_domains: set[str] = set()
+    permanently_blocked_domains: set[str] = set()
     client = get_supabase_client()
+
     for i in range(0, len(domains), 1000):
         chunk = domains[i : i + 1000]
+
+        # Rule 1: recently successful → fresh, skip
         rows = (
             client.table("web_scraping_enrichment")
             .select("domain")
@@ -27,11 +40,34 @@ def _filter_stale_domains(domains: list[str]) -> list[str]:
             .execute()
         )
         fresh_domains.update(row["domain"] for row in rows.data)
+
+        # Rule 2: permanently blocked — has failures but never succeeded
+        ever_succeeded = {
+            row["domain"]
+            for row in client.table("web_scraping_enrichment")
+            .select("domain")
+            .in_("domain", chunk)
+            .eq("success", True)
+            .execute()
+            .data
+        }
+        ever_failed = {
+            row["domain"]
+            for row in client.table("web_scraping_enrichment")
+            .select("domain")
+            .in_("domain", chunk)
+            .eq("success", False)
+            .execute()
+            .data
+        }
+        permanently_blocked_domains.update(ever_failed - ever_succeeded)
+
+    skip_domains = fresh_domains | permanently_blocked_domains
+    stale = [d for d in domains if d not in skip_domains]
     logger = get_logger()
-    skipped = len(fresh_domains)
-    stale = [d for d in domains if d not in fresh_domains]
     logger.info(
-        f"Skipping {skipped} domains with successful scraping in last {FRESHNESS_DAYS} days; "
+        f"Skipping {len(fresh_domains)} fresh domains and "
+        f"{len(permanently_blocked_domains)} permanently blocked domains; "
         f"{len(stale)} domains to process"
     )
     return stale
