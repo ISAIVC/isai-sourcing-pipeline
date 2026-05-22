@@ -22,10 +22,28 @@ def load_traxcn_export(supabase_file_path: str) -> bytes:
     return file
 
 
+def _find_header_row(file: bytes) -> int:
+    """Detect the header row index by locating 'Domain Name' in the first Companies sheet.
+
+    Tracxn occasionally adds metadata rows (e.g. 'Prepared on ...') that shift
+    the header down, so we cannot hardcode the row index.
+    """
+    raw = pd.read_excel(io.BytesIO(file), sheet_name=None, header=None)
+    companies_raw = next(
+        (df for name, df in raw.items() if name.startswith("Companies")), None
+    )
+    if companies_raw is None:
+        raise ValueError("No sheet starting with 'Companies' found in the file")
+    for i, row in companies_raw.iterrows():
+        if "Domain Name" in row.values:
+            return i
+    raise ValueError("Could not find a header row containing 'Domain Name'")
+
+
 def load_and_clean_excel(file: bytes):
     """
     Loads an Excel file, filters sheets starting with 'Companies', 'Funding', or 'People',
-    uses row 6 as column names, and returns them as dataframes.
+    auto-detects the header row, and returns them as dataframes.
 
     Args:
         file (bytes): The Excel file.
@@ -34,7 +52,9 @@ def load_and_clean_excel(file: bytes):
         dict: Keys are output names (companies, funding, people), values are dataframes.
     """
     logger = get_logger()
-    all_sheets = pd.read_excel(io.BytesIO(file), sheet_name=None, header=5)
+    header_row = _find_header_row(file)
+    logger.info(f"Detected header row at index {header_row}")
+    all_sheets = pd.read_excel(io.BytesIO(file), sheet_name=None, header=header_row)
     sheet_prefixes = {
         "Companies": "companies",
         "Funding": "funding",
