@@ -22,22 +22,24 @@ def load_traxcn_export(supabase_file_path: str) -> bytes:
     return file
 
 
-def _find_header_row(file: bytes) -> int:
-    """Detect the header row index by locating 'Domain Name' in the first Companies sheet.
+def _find_header_row(raw_df: pd.DataFrame, sheet_name: str) -> int:
+    """Detect the header row index of a single sheet read with header=None.
 
-    Tracxn occasionally adds metadata rows (e.g. 'Prepared on ...') that shift
-    the header down, so we cannot hardcode the row index.
+    Tracxn prepends a variable number of metadata rows (title, description,
+    'Prepared on ...', copyright, occasional footnotes such as
+    'Asterisk (*) denotes calculated estimates.'), and that number is NOT the
+    same across sheets: on the July 2026 export the Companies sheet carries one
+    extra line, so its header sits at index 6 while Funding and People sit at
+    index 5. Each sheet must therefore be probed independently — reusing the
+    Companies index shifts the other sheets by one row, their real header gets
+    consumed as data and the first data row becomes the header.
     """
-    raw = pd.read_excel(io.BytesIO(file), sheet_name=None, header=None)
-    companies_raw = next(
-        (df for name, df in raw.items() if name.startswith("Companies")), None
-    )
-    if companies_raw is None:
-        raise ValueError("No sheet starting with 'Companies' found in the file")
-    for i, row in companies_raw.iterrows():
+    for i, row in raw_df.iterrows():
         if "Domain Name" in row.values:
             return i
-    raise ValueError("Could not find a header row containing 'Domain Name'")
+    raise ValueError(
+        f"Could not find a header row containing 'Domain Name' in sheet '{sheet_name}'"
+    )
 
 
 def load_and_clean_excel(file: bytes):
@@ -52,9 +54,7 @@ def load_and_clean_excel(file: bytes):
         dict: Keys are output names (companies, funding, people), values are dataframes.
     """
     logger = get_logger()
-    header_row = _find_header_row(file)
-    logger.info(f"Detected header row at index {header_row}")
-    all_sheets = pd.read_excel(io.BytesIO(file), sheet_name=None, header=header_row)
+    raw_sheets = pd.read_excel(io.BytesIO(file), sheet_name=None, header=None)
     sheet_prefixes = {
         "Companies": "companies",
         "Funding": "funding",
@@ -62,7 +62,7 @@ def load_and_clean_excel(file: bytes):
     }
     filtered_sheets = {}
 
-    for sheet_name, df in all_sheets.items():
+    for sheet_name, raw_df in raw_sheets.items():
         # Check if sheet starts with any of the target prefixes
         matching_prefix = None
         for prefix, output_name in sheet_prefixes.items():
@@ -75,7 +75,12 @@ def load_and_clean_excel(file: bytes):
             logger.info(f"Skipping sheet: '{sheet_name}'")
             continue
 
-        logger.info(f"Processing sheet: '{sheet_name}'")
+        # Detect this sheet's own header row, then re-read it with that header
+        header_row = _find_header_row(raw_df, sheet_name)
+        logger.info(
+            f"Processing sheet: '{sheet_name}' (header row at index {header_row})"
+        )
+        df = pd.read_excel(io.BytesIO(file), sheet_name=sheet_name, header=header_row)
         df = df.dropna(how="all", axis=0)
         df = df.dropna(how="all", axis=1)
         df = df.map(
