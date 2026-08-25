@@ -32,7 +32,6 @@ FIELDS = ",".join(
         "website_url",
         "images(32x32,74x74,100x100)",
         "growth_stage",
-        "growth_stage_new",
         "hq_locations",
         "launch_year",
         "company_status",
