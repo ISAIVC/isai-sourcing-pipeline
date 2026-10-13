@@ -33,10 +33,16 @@ TASK_REPRESENTATIVE_COLUMNS: dict[str, str] = {
     "compute_founders_values": "founders_background",
     "annotate_company_tags": "scope",
     "compute_scores": "solution_fit_cg",
-    "compute_equity_score": "equity_score",
-    "compute_maturity": "maturity_fit_cg",
-    "compute_growth_score": "traction_score",
-    "compute_global_score": "global_fund_score",
+    # Volontairement ABSENTS ici : compute_equity_score (equity_score),
+    # compute_maturity (maturity_fit_cg), compute_growth_score (traction_score)
+    # et compute_global_score (global_fund_score). Ces colonnes peuvent rester
+    # NULL legitimement (absence de signal) et sont vides au premier
+    # deploiement : les ajouter ici ferait considerer quasiment toutes les
+    # societes comme "incompletes" en mode auto, donc retraiter en boucle des
+    # domaines deja traites (appels Gemini inclus) et retarder les nouveaux.
+    # Les 4 scores sont calcules sur les domaines selectionnes pour les autres
+    # raisons, et remplis sur l'existant par un run manuel recompute_all
+    # (config limitee aux 4 scores).
 }
 
 
