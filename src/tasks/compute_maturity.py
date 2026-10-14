@@ -57,6 +57,17 @@ projet Cowork "ISAI-sourcing-fix") :
                     0.75 / 0.55 / 0.35 / 0.15 -- non recalibres pour ce
                     score, a valider empiriquement).
 
+Recalibrage v1.1 (2026-10-14, cf. page Notion "Maturity Fit", a faire valider
+par Simon) -- les regles ci-dessus sont remplacees par :
+- Bloc montant : 0-4 points (au lieu de 0-2), degrade plus raide au-dessus de
+  20 M$ (20-50 M$ = 2, 50-100 M$ = 1, > 100 M$ = 0). Total des blocs : 13.
+- Bloc headcount : fenetre cible (11-149 = 3, 150-499 = 2, >= 500 = 1,
+  <= 10 = 1) au lieu de "plus c'est gros, mieux c'est".
+- Seuils de ratio durcis : 0.85 / 0.65 / 0.45 / 0.25 (au lieu de 0.75 / 0.55
+  / 0.35 / 0.15).
+- Plafonds : total leve > 150 M$ -> note 5 pour les deux fonds ; pas de note
+  1 avec moins de 3 blocs disponibles (ramenee a 2).
+
 A CONFIRMER / A COMPLETER avant mise en prod :
 - Colonnes Supabase : maturity_fit_cg, maturity_fit_by, maturity_fit_coverage
   et maturity_fit_low_confidence existent deja dans business_computed_values
@@ -111,7 +122,13 @@ NEUTRAL_SCORE = 3  # milieu de l'echelle 1-5, force si 1 seul bloc dispo hors st
 STAGE_MAX_POINTS = 4
 AGE_MAX_POINTS = 2
 HEADCOUNT_MAX_POINTS = 3
-AMOUNT_MAX_POINTS = 2
+AMOUNT_MAX_POINTS = 4
+
+# Plafonds (recalibrage 2026-10-14)
+AMOUNT_CAP_M = 150  # total leve > 150 M$ -> note 5
+WORST_SCORE = 5
+MIN_BLOCKS_FOR_BEST_SCORE = 3  # pas de note 1 en dessous
+BEST_SCORE_WHEN_CAPPED = 2
 
 # --- Bloc stade : mapping libelle brut -> stade canonique -------------------
 # Provisoire / non exhaustif, cf. docstring ci-dessus.
@@ -214,20 +231,27 @@ def age_points(inc_date, year: int) -> Optional[int]:
 
 
 def headcount_points(headcount) -> Optional[int]:
-    """0-3 points. None si headcount absent ou <= 0."""
+    """0-3 points, fenetre cible (recalibrage 2026-10-14). None si headcount
+    absent ou <= 0.
+
+    11-149 = 3 (coeur de cible), 150-499 = 2, >= 500 = 1, <= 10 = 1 (tres
+    petite structure : pas un signal negatif en soi)."""
     if not headcount or headcount <= 0:
         return None
     if headcount >= 500:
-        return 3
+        return 1
     if headcount >= 150:
         return 2
     if headcount >= 11:
-        return 1
-    return 0
+        return 3
+    return 1
 
 
 def amount_points(total_raised, fund: str) -> Optional[int]:
-    """0-2 points par fonds. None si total_amount_raised absent.
+    """0-4 points par fonds. None si total_amount_raised absent.
+
+    Recalibrage 2026-10-14 : bloc doublé (0-4), degrade raide au-dessus de
+    20 M$. Le cas > 150 M$ (note 5 forcee) est gere dans _score_maturity.
 
     total_amount_raised est confirme en dollars bruts (cf.
     equity-story-spec-v2-sans-bloc-c.md, verifie sur Supabase le
@@ -239,13 +263,13 @@ def amount_points(total_raised, fund: str) -> Optional[int]:
     sweet_spot_floor = 3 if fund == "by" else 5
     if m < 2:
         return 0
-    if m < 3:
-        return 1
     if m < sweet_spot_floor:
-        return 1 if fund == "cg" else 2
-    if m <= 20:
         return 2
-    if m <= 150:
+    if m <= 20:
+        return 4
+    if m <= 50:
+        return 2
+    if m <= 100:
         return 1
     return 0
 
@@ -269,14 +293,14 @@ def resolve_maturity_scope(
 
 def _ratio_to_maturity(ratio: float) -> int:
     """1 = le mieux positionne pour ce fonds, 5 = le moins bien positionne.
-    Seuils repris tels quels d'Equity Story, non recalibres ici."""
-    if ratio >= 0.75:
+    Seuils durcis le 2026-10-14 (0.85 / 0.65 / 0.45 / 0.25)."""
+    if ratio >= 0.85:
         return 1
-    if ratio >= 0.55:
+    if ratio >= 0.65:
         return 2
-    if ratio >= 0.35:
+    if ratio >= 0.45:
         return 3
-    if ratio >= 0.15:
+    if ratio >= 0.25:
         return 4
     return 5
 
@@ -323,9 +347,10 @@ def _score_maturity(
 
     if coverage == 1 and "stage" in blocks:
         _, cg_points, by_points = blocks["stage"]
+        # Pas de note 1 avec moins de 3 blocs (recalibrage 2026-10-14).
         return {
-            "maturity_fit_cg": STAGE_MAX_POINTS + 1 - cg_points,
-            "maturity_fit_by": STAGE_MAX_POINTS + 1 - by_points,
+            "maturity_fit_cg": max(STAGE_MAX_POINTS + 1 - cg_points, BEST_SCORE_WHEN_CAPPED),
+            "maturity_fit_by": max(STAGE_MAX_POINTS + 1 - by_points, BEST_SCORE_WHEN_CAPPED),
             "maturity_fit_coverage": coverage,
             "maturity_fit_low_confidence": True,
         }
@@ -342,9 +367,24 @@ def _score_maturity(
     cg_total = sum(b[1] for b in blocks.values())
     by_total = sum(b[2] for b in blocks.values())
 
+    cg_score = _ratio_to_maturity(cg_total / max_total)
+    by_score = _ratio_to_maturity(by_total / max_total)
+
+    # Plafonds (recalibrage 2026-10-14) :
+    # - pas de note 1 avec moins de 3 blocs disponibles -> ramenee a 2 ;
+    # - total leve > 150 M$ -> note 5 pour les deux fonds (prioritaire).
+    if coverage < MIN_BLOCKS_FOR_BEST_SCORE:
+        if cg_score == 1:
+            cg_score = BEST_SCORE_WHEN_CAPPED
+        if by_score == 1:
+            by_score = BEST_SCORE_WHEN_CAPPED
+    if total_raised is not None and total_raised / 1_000_000 > AMOUNT_CAP_M:
+        cg_score = WORST_SCORE
+        by_score = WORST_SCORE
+
     return {
-        "maturity_fit_cg": _ratio_to_maturity(cg_total / max_total),
-        "maturity_fit_by": _ratio_to_maturity(by_total / max_total),
+        "maturity_fit_cg": cg_score,
+        "maturity_fit_by": by_score,
         "maturity_fit_coverage": coverage,
         "maturity_fit_low_confidence": False,
     }

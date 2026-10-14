@@ -14,7 +14,8 @@ dans le projet Cowork) :
   gere a part via la table Supabase vc_funds + un futur filtre dedie, pas
   ici. Ne pas reintroduire un tiering ad hoc dans ce fichier.
 - 4 sous-blocs independants, chacun sur 0-2 points :
-    A1 - recence du dernier round (dispo si un round date existe)
+    A1 - recence du dernier round (dispo si un round date existe) ; en
+         jours reels, sweet spot 6-12 mois (cf. recalibrage 2026-10-14)
     A2 - cadence historique (dispo seulement si >= 2 rounds)
     B  - efficacite capitalistique : montant leve / age (dispo si
          total_amount_raised ET inc_date connus)
@@ -34,6 +35,13 @@ dans le projet Cowork) :
 - Si AUCUN sous-bloc n'est disponible (pas de levee du tout, boot-strap),
   equity_score = None + flag no_funding=True : ce n'est pas une "mauvaise"
   equity story, c'est une absence de signal, donc pas de valeur numerique.
+
+Recalibrage v1.1 (2026-10-14, regle de recence validee par Simon, cf. page
+Notion "Equity Story") :
+- A1 en jours reels depuis le dernier round : 6-12 mois = 2 points (sweet
+  spot), 12-24 mois = 1 point, < 6 mois ou > 24 mois = 0 point.
+- Plafonds explicites : pas de note 1 si le dernier round a moins de 6 mois
+  ou plus de 3 ans (un 1 est ramene a 2).
 
 A CONFIRMER / A COMPLETER avant mise en prod :
 - Verifie sur Supabase (projet "Data Driven Sourcing", 2026-09-08) :
@@ -77,6 +85,29 @@ from src.utils.logger import get_logger
 MIN_BLOCKS_FOR_TRUSTED_SCORE = 2
 NEUTRAL_SCORE = 3  # milieu de l'echelle 1-5, force si un seul bloc dispo
 
+# --- Bloc A1 (recence) : paliers en jours, regle de Simon (2026-10-14) ---
+# Sweet spot entre 6 et 12 mois ; un tour trop recent (< 6 mois) ne vaut pas
+# plus qu'un tour trop ancien (> 24 mois).
+FRESH_DAYS = 183  # 6 mois
+SWEET_SPOT_END_DAYS = 365  # 12 mois
+STALE_DAYS = 730  # 24 mois
+# Plafonds explicites : pas de note 1 si le dernier tour a moins de 6 mois ou
+# plus de 3 ans -> la note est ramenee a 2.
+CAP_FRESH_DAYS = FRESH_DAYS
+CAP_STALE_DAYS = 1095  # 3 ans
+BEST_SCORE_WHEN_CAPPED = 2
+
+
+def _recency_points(days_since_last: int) -> int:
+    """0-2 points selon l'anciennete du dernier tour (en jours reels)."""
+    if days_since_last < FRESH_DAYS:  # < 6 mois
+        return 0
+    if days_since_last < SWEET_SPOT_END_DAYS:  # 6-12 mois : sweet spot
+        return 2
+    if days_since_last < STALE_DAYS:  # 12-24 mois
+        return 1
+    return 0  # > 24 mois
+
 
 def _to_date(value) -> Optional[date]:
     if value is None:
@@ -114,10 +145,10 @@ def _score_equity_story(company: dict, rounds: list[dict], today: date) -> dict:
 
     # --- A1 : recence du dernier round ---
     last_date = _to_date(best_rounds[-1]["date"]) if best_rounds else None
+    days_since_last: Optional[int] = None
     if last_date is not None:
-        years_since_last = today.year - last_date.year
-        a1 = 2 if years_since_last < 2 else 1 if years_since_last <= 4 else 0
-        available.append((a1, 2))
+        days_since_last = (today - last_date).days
+        available.append((_recency_points(days_since_last), 2))
 
     # --- A2 : cadence historique (besoin d'au moins 2 rounds) ---
     if n >= 2:
@@ -189,6 +220,15 @@ def _score_equity_story(company: dict, rounds: list[dict], today: date) -> dict:
         score = 4
     else:
         score = 5
+
+    # Plafonds explicites : pas de 1 si le dernier tour est trop recent
+    # (< 6 mois) ou trop ancien (> 3 ans).
+    if (
+        score == 1
+        and days_since_last is not None
+        and (days_since_last < CAP_FRESH_DAYS or days_since_last > CAP_STALE_DAYS)
+    ):
+        score = BEST_SCORE_WHEN_CAPPED
 
     return {
         "domain": domain,
