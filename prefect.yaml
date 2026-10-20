@@ -116,6 +116,7 @@ deployments:
   schedule:
     cron: "0 * * * *"
     timezone: "UTC"
+    active: false
   entrypoint: src/flows/business_processing.py:business_processing_flow
   parameters:
     domains: []
@@ -176,6 +177,7 @@ deployments:
   schedule:
     cron: "0 */2 * * *"
     timezone: "UTC"
+    active: false
   entrypoint: src/flows/website_enrichment.py:website_enrichment_flow
   parameters:
     domains:
@@ -200,6 +202,7 @@ deployments:
   schedule:
     cron: "0 7 * * *"
     timezone: "UTC"
+    active: false
   entrypoint: src/flows/compute_search_resources.py:compute_search_resources_flow
   parameters: {}
   work_pool:
@@ -219,6 +222,7 @@ deployments:
   schedule:
     cron: "0 */12 * * *"
     timezone: "UTC"
+    active: false
   entrypoint: src/flows/dealroom_enrichment.py:dealroom_enrichment_flow
   parameters:
     domains:

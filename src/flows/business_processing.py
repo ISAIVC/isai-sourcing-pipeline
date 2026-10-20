@@ -10,8 +10,12 @@ from src.config.clients import get_supabase_client
 from src.config.settings import get_settings
 from src.tasks import (
     annotate_company_tags,
+    compute_equity_score,
     compute_founders_values,
     compute_funding_metrics,
+    compute_global_score,
+    compute_growth_score,
+    compute_maturity,
     compute_scores,
     embed_textual_dimensions,
     fuzzy_matching_metrics,
@@ -29,6 +33,16 @@ TASK_REPRESENTATIVE_COLUMNS: dict[str, str] = {
     "compute_founders_values": "founders_background",
     "annotate_company_tags": "scope",
     "compute_scores": "solution_fit_cg",
+    # Volontairement ABSENTS ici : compute_equity_score (equity_score),
+    # compute_maturity (maturity_fit_cg), compute_growth_score (traction_score)
+    # et compute_global_score (global_fund_score). Ces colonnes peuvent rester
+    # NULL legitimement (absence de signal) et sont vides au premier
+    # deploiement : les ajouter ici ferait considerer quasiment toutes les
+    # societes comme "incompletes" en mode auto, donc retraiter en boucle des
+    # domaines deja traites (appels Gemini inclus) et retarder les nouveaux.
+    # Les 4 scores sont calcules sur les domaines selectionnes pour les autres
+    # raisons, et remplis sur l'existant par un run manuel recompute_all
+    # (config limitee aux 4 scores).
 }
 
 
@@ -112,6 +126,10 @@ class BusinessProcessingConfig(BaseModel):
     annotate_company_tags: bool = Field(default=True)
     embed_textual_dimensions: bool = Field(default=True)
     compute_scores: bool = Field(default=True)
+    compute_equity_score: bool = Field(default=True)
+    compute_maturity: bool = Field(default=True)
+    compute_growth_score: bool = Field(default=True)
+    compute_global_score: bool = Field(default=True)
 
 
 @task(name="retrieve_business_domains_automatically")
@@ -187,19 +205,77 @@ def business_processing_flow(
         parallel_tasks = []
         if config.sync_attio_status:
             parallel_tasks.append(pull_attio_status.submit(batch))
+        fuzzy_matching_future = None
         if config.compute_fuzzy_matching_metrics:
-            parallel_tasks.append(fuzzy_matching_metrics.submit(batch))
+            fuzzy_matching_future = fuzzy_matching_metrics.submit(batch)
+            parallel_tasks.append(fuzzy_matching_future)
+        funding_metrics_future = None
         if config.compute_funding_metrics:
-            parallel_tasks.append(compute_funding_metrics.submit(batch))
+            funding_metrics_future = compute_funding_metrics.submit(batch)
+            parallel_tasks.append(funding_metrics_future)
+        founders_future = None
         if config.compute_founders_values:
-            parallel_tasks.append(compute_founders_values.submit(batch))
+            founders_future = compute_founders_values.submit(batch)
+            parallel_tasks.append(founders_future)
+        annotate_future = None
         if config.annotate_company_tags:
-            parallel_tasks.append(annotate_company_tags.submit(batch))
+            annotate_future = annotate_company_tags.submit(batch)
+            parallel_tasks.append(annotate_future)
         if any([config.embed_textual_dimensions, config.compute_scores]):
             parallel_tasks.append(
                 embed_and_compute_scores.submit(
                     batch, config.embed_textual_dimensions, config.compute_scores
                 )
             )
+        equity_future = None
+        if config.compute_equity_score:
+            equity_future = compute_equity_score.submit(batch)
+            parallel_tasks.append(equity_future)
+        maturity_future = None
+        if config.compute_maturity:
+            # compute_maturity lit business_computed_values.vc_current_stage,
+            # ecrit par compute_funding_metrics, et business_computed_values.scope,
+            # ecrit par annotate_company_tags (pour renseigner la colonne
+            # unique maturity_fit) -- il faut attendre ces resultats avant
+            # de soumettre compute_maturity dans le meme batch pour ne pas
+            # lire une valeur perimee (cf. docstring de compute_maturity.py).
+            if funding_metrics_future is not None:
+                funding_metrics_future.result()
+            if annotate_future is not None:
+                annotate_future.result()
+            maturity_future = compute_maturity.submit(batch)
+            parallel_tasks.append(maturity_future)
+        growth_future = None
+        if config.compute_growth_score:
+            # compute_growth_score lit business_computed_values.global_2000_clients
+            # (Bloc A), ecrit par fuzzy_matching_metrics -- meme risque de
+            # valeur perimee que compute_maturity/compute_funding_metrics
+            # ci-dessus si les deux tournent en parallele dans le meme
+            # batch : on attend explicitement le resultat avant de
+            # soumettre compute_growth_score.
+            if fuzzy_matching_future is not None:
+                fuzzy_matching_future.result()
+            growth_future = compute_growth_score.submit(batch)
+            parallel_tasks.append(growth_future)
+        if config.compute_global_score:
+            # compute_global_score lit business_computed_values.equity_score /
+            # maturity_fit_cg / maturity_fit_by / traction_score / scope /
+            # serial_entrepreneur, ecrits respectivement par
+            # compute_equity_score / compute_maturity / compute_growth_score /
+            # annotate_company_tags / compute_founders_values -- meme risque
+            # de valeur perimee que les dependances ci-dessus si ces taches
+            # tournent en parallele dans le meme batch : on attend
+            # explicitement chaque resultat avant de soumettre
+            # compute_global_score (cf. docstring de compute_global_score.py).
+            for dependency_future in (
+                equity_future,
+                maturity_future,
+                growth_future,
+                founders_future,
+                annotate_future,
+            ):
+                if dependency_future is not None:
+                    dependency_future.result()
+            parallel_tasks.append(compute_global_score.submit(batch))
         for future in parallel_tasks:
             future.result()
